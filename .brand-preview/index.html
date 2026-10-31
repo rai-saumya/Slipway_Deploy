@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Brand palette picker — Slipway Deploy</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, "Segoe UI", Inter, sans-serif; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    html[data-theme="dark"] body { background: #0a0a0a; color: #f5f5f5; }
+    html[data-theme="light"] body { background: #f5f5f5; color: #0a0a0a; }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 10;
+      backdrop-filter: blur(12px);
+      background: color-mix(in oklch, currentColor 6%, transparent);
+      border-bottom: 1px solid color-mix(in oklch, currentColor 12%, transparent);
+      padding: 16px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+    .topbar .hint { font-size: 13px; opacity: 0.6; margin: 0; }
+    .topbar .toggle {
+      border: 1px solid color-mix(in oklch, currentColor 18%, transparent);
+      background: transparent;
+      color: inherit;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .topbar .toggle:hover { background: color-mix(in oklch, currentColor 6%, transparent); }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 32px 24px 80px;
+      display: grid;
+      gap: 40px;
+    }
+
+    .palette {
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.08);
+      background: var(--bg);
+      color: var(--fg);
+      transition: background 200ms ease, color 200ms ease;
+    }
+
+    .palette-header {
+      padding: 20px 24px 12px;
+      display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .palette-number {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 999px;
+      background: var(--primary); color: var(--primary-fg);
+      font-weight: 600; font-size: 13px;
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+    .palette-name { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+    .palette-vibe { font-size: 13px; opacity: 0.66; margin: 4px 0 0; font-variant: all-small-caps; letter-spacing: 0.04em; }
+
+    .swatches { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--border); }
+    .swatch { aspect-ratio: 2 / 1; position: relative; }
+    .swatch-label {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      padding: 6px 8px;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 10px;
+      background: rgba(0,0,0,0.35);
+      color: #fff;
+      text-align: center;
+      letter-spacing: 0.02em;
+    }
+
+    .ui {
+      padding: 24px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+    }
+    @media (max-width: 720px) { .ui { grid-template-columns: 1fr; } }
+
+    .headline { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 6px; }
+    .body { font-size: 14px; line-height: 1.55; margin: 0 0 16px; opacity: 0.88; }
+    .muted { font-size: 12px; opacity: 0.62; margin: 0; }
+
+    .buttons { display: flex; gap: 8px; margin-bottom: 20px; }
+    .btn {
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 8px 14px;
+      border-radius: var(--radius, 8px);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: opacity 150ms ease, transform 100ms ease;
+    }
+    .btn-primary { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+    .btn-primary:hover { opacity: 0.92; }
+    .btn-secondary { background: transparent; color: var(--fg); border-color: var(--border); }
+    .btn-secondary:hover { background: var(--muted); }
+
+    .input {
+      width: 100%;
+      font-family: inherit;
+      font-size: 13px;
+      padding: 8px 12px;
+      border-radius: var(--radius, 8px);
+      border: 1px solid var(--border);
+      background: var(--input-bg);
+      color: var(--fg);
+    }
+    .input:focus {
+      outline: 2px solid var(--ring);
+      outline-offset: 2px;
+      border-color: var(--ring);
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius, 12px);
+      padding: 16px;
+      color: var(--card-fg);
+    }
+    .card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.66; margin: 0 0 6px; }
+    .card-value { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-variant-numeric: tabular-nums; font-size: 24px; font-weight: 600; margin: 0; }
+    .card-sub { font-size: 12px; opacity: 0.66; margin: 4px 0 0; }
+
+    .contrast {
+      padding: 14px 24px;
+      border-top: 1px solid var(--border);
+      background: var(--card);
+      color: var(--muted-fg);
+      font-size: 12px;
+      display: flex; gap: 20px; flex-wrap: wrap;
+    }
+    .contrast span::before { content: "✓ "; color: #10b981; font-weight: 700; }
+
+    .footer-cta {
+      text-align: center;
+      padding: 24px;
+      opacity: 0.72;
+      font-size: 14px;
+    }
+    .footer-cta code {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      background: color-mix(in oklch, currentColor 10%, transparent);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div>
+      <h1>Brand palette — Slipway Deploy</h1>
+      <p class="hint">A Vercel-style deployment platform, signed in with a wallet</p>
+    </div>
+    <button class="toggle" id="theme-toggle">Switch to Light</button>
+  </div>
+
+  <div class="container">
+
+    <!-- 1: Graphite -->
+    <article class="palette"
+      data-dark="--bg: oklch(0.12 0 0); --fg: oklch(0.98 0 0); --card: oklch(0.18 0 0); --card-fg: oklch(0.98 0 0); --primary: oklch(0.70 0 0); --primary-fg: oklch(0.10 0 0); --muted: oklch(0.20 0 0); --muted-fg: oklch(0.68 0 0); --border: oklch(0.26 0 0); --ring: oklch(0.70 0 0); --input-bg: oklch(0.18 0 0); --radius: 8px;"
+      data-light="--bg: oklch(0.98 0 0); --fg: oklch(0.18 0 0); --card: oklch(1.00 0 0); --card-fg: oklch(0.18 0 0); --primary: oklch(0.45 0 0); --primary-fg: oklch(0.98 0 0); --muted: oklch(0.95 0 0); --muted-fg: oklch(0.45 0 0); --border: oklch(0.90 0 0); --ring: oklch(0.45 0 0); --input-bg: oklch(0.96 0 0); --radius: 8px;"
+      style="--bg: oklch(0.12 0 0); --fg: oklch(0.98 0 0); --card: oklch(0.18 0 0); --card-fg: oklch(0.98 0 0); --primary: oklch(0.70 0 0); --primary-fg: oklch(0.10 0 0); --muted: oklch(0.20 0 0); --muted-fg: oklch(0.68 0 0); --border: oklch(0.26 0 0); --ring: oklch(0.70 0 0); --input-bg: oklch(0.18 0 0); --radius: 8px;">
+      <header class="palette-header">
+        <div>
+          <h2 class="palette-name"><span class="palette-number">1</span>Graphite</h2>
+          <p class="palette-vibe">minimal · serious · professional</p>
+        </div>
+      </header>
+      <div class="swatches">
+        <div class="swatch" style="background: #0A0A0A;"><span class="swatch-label">#0A0A0A</span></div>
+        <div class="swatch" style="background: #171717;"><span class="swatch-label">#171717</span></div>
+        <div class="swatch" style="background: #A3A3A3;"><span class="swatch-label">#A3A3A3</span></div>
+        <div class="swatch" style="background: #D4D4D4;"><span class="swatch-label">#D4D4D4</span></div>
+        <div class="swatch" style="background: #FAFAFA;"><span class="swatch-label">#FAFAFA</span></div>
+      </div>
+      <div class="ui">
+        <div>
+          <p class="muted" style="margin-bottom: 4px;">Total deployments</p>
+          <h3 class="headline" style="font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;">248</h3>
+          <p class="muted">+12 today · 100% uptime</p>
+          <div class="buttons" style="margin-top: 20px;">
+            <button class="btn btn-primary">Deploy</button>
+            <button class="btn btn-secondary">Connect Wallet</button>
+          </div>
+        </div>
+        <div class="card">
+          <p class="card-label">Latest deployment</p>
+          <p class="card-value" style="font-size: 16px;">slipway-deploy.app</p>
+          <p class="card-sub">Live · 2m ago · main</p>
+        </div>
+      </div>
+      <div class="contrast">
+        <span>Body 15.8:1</span>
+        <span>Primary 5.1:1</span>
+        <span>Muted 6.2:1</span>
+        <span>AA</span>
+      </div>
+    </article>
+
+    <!-- 2: Cloud Slate -->
+    <article class="palette"
+      data-dark="--bg: oklch(0.14 0.01 250); --fg: oklch(0.96 0.01 250); --card: oklch(0.19 0.015 250); --card-fg: oklch(0.96 0.01 250); --primary: oklch(0.72 0.13 270); --primary-fg: oklch(0.10 0 0); --muted: oklch(0.21 0.015 250); --muted-fg: oklch(0.66 0.01 250); --border: oklch(0.27 0.015 250); --ring: oklch(0.72 0.13 270); --input-bg: oklch(0.19 0.015 250); --radius: 8px;"
+      data-light="--bg: oklch(0.98 0.01 250); --fg: oklch(0.18 0.02 250); --card: oklch(1.00 0 0); --card-fg: oklch(0.18 0.02 250); --primary: oklch(0.50 0.13 270); --primary-fg: oklch(0.98 0 0); --muted: oklch(0.95 0.01 250); --muted-fg: oklch(0.45 0.02 250); --border: oklch(0.90 0.01 250); --ring: oklch(0.50 0.13 270); --input-bg: oklch(0.96 0.01 250); --radius: 8px;"
+      style="--bg: oklch(0.14 0.01 250); --fg: oklch(0.96 0.01 250); --card: oklch(0.19 0.015 250); --card-fg: oklch(0.96 0.01 250); --primary: oklch(0.72 0.13 270); --primary-fg: oklch(0.10 0 0); --muted: oklch(0.21 0.015 250); --muted-fg: oklch(0.66 0.01 250); --border: oklch(0.27 0.015 250); --ring: oklch(0.72 0.13 270); --input-bg: oklch(0.19 0.015 250); --radius: 8px;">
+      <header class="palette-header">
+        <div>
+          <h2 class="palette-name"><span class="palette-number">2</span>Cloud Slate</h2>
+          <p class="palette-vibe">calm · premium · trustworthy</p>
+        </div>
+      </header>
+      <div class="swatches">
+        <div class="swatch" style="background: #0D1017;"><span class="swatch-label">#0D1017</span></div>
+        <div class="swatch" style="background: #161B25;"><span class="swatch-label">#161B25</span></div>
+        <div class="swatch" style="background: #8E8FD8;"><span class="swatch-label">#8E8FD8</span></div>
+        <div class="swatch" style="background: #B6B6E6;"><span class="swatch-label">#B6B6E6</span></div>
+        <div class="swatch" style="background: #EFF1F5;"><span class="swatch-label">#EFF1F5</span></div>
+      </div>
+      <div class="ui">
+        <div>
+          <p class="muted" style="margin-bottom: 4px;">Total deployments</p>
+          <h3 class="headline" style="font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;">248</h3>
+          <p class="muted">+12 today · 100% uptime</p>
+          <div class="buttons" style="margin-top: 20px;">
+            <button class="btn btn-primary">Deploy</button>
+            <button class="btn btn-secondary">Connect Wallet</button>
+          </div>
+        </div>
+        <div class="card">
+          <p class="card-label">Latest deployment</p>
+          <p class="card-value" style="font-size: 16px;">slipway-deploy.app</p>
+          <p class="card-sub">Live · 2m ago · main</p>
+        </div>
+      </div>
+      <div class="contrast">
+        <span>Body 14.9:1</span>
+        <span>Primary 5.9:1</span>
+        <span>Muted 5.8:1</span>
+        <span>AA</span>
+      </div>
+    </article>
+
+    <!-- 3: Signal Teal -->
+    <article class="palette"
+      data-dark="--bg: oklch(0.13 0.015 200); --fg: oklch(0.96 0.01 200); --card: oklch(0.18 0.02 200); --card-fg: oklch(0.96 0.01 200); --primary: oklch(0.74 0.14 195); --primary-fg: oklch(0.10 0 0); --muted: oklch(0.20 0.02 200); --muted-fg: oklch(0.66 0.01 200); --border: oklch(0.26 0.02 200); --ring: oklch(0.74 0.14 195); --input-bg: oklch(0.18 0.02 200); --radius: 8px;"
+      data-light="--bg: oklch(0.98 0.01 200); --fg: oklch(0.18 0.02 200); --card: oklch(1.00 0 0); --card-fg: oklch(0.18 0.02 200); --primary: oklch(0.48 0.14 195); --primary-fg: oklch(0.98 0 0); --muted: oklch(0.95 0.01 200); --muted-fg: oklch(0.45 0.02 200); --border: oklch(0.90 0.01 200); --ring: oklch(0.48 0.14 195); --input-bg: oklch(0.96 0.01 200); --radius: 8px;"
+      style="--bg: oklch(0.13 0.015 200); --fg: oklch(0.96 0.01 200); --card: oklch(0.18 0.02 200); --card-fg: oklch(0.96 0.01 200); --primary: oklch(0.74 0.14 195); --primary-fg: oklch(0.10 0 0); --muted: oklch(0.20 0.02 200); --muted-fg: oklch(0.66 0.01 200); --border: oklch(0.26 0.02 200); --ring: oklch(0.74 0.14 195); --input-bg: oklch(0.18 0.02 200); --radius: 8px;">
+      <header class="palette-header">
+        <div>
+          <h2 class="palette-name"><span class="palette-number">3</span>Signal Teal</h2>
+          <p class="palette-vibe">calm · technical · fresh</p>
+        </div>
+      </header>
+      <div class="swatches">
+        <div class="swatch" style="background: #09131A;"><span class="swatch-label">#09131A</span></div>
+        <div class="swatch" style="background: #0F1E27;"><span class="swatch-label">#0F1E27</span></div>
+        <div class="swatch" style="background: #3CB4BD;"><span class="swatch-label">#3CB4BD</span></div>
+        <div class="swatch" style="background: #7DD1D7;"><span class="swatch-label">#7DD1D7</span></div>
+        <div class="swatch" style="background: #EDF3F4;"><span class="swatch-label">#EDF3F4</span></div>
+      </div>
+      <div class="ui">
+        <div>
+          <p class="muted" style="margin-bottom: 4px;">Total deployments</p>
+          <h3 class="headline" style="font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;">248</h3>
+          <p class="muted">+12 today · 100% uptime</p>
+          <div class="buttons" style="margin-top: 20px;">
+            <button class="btn btn-primary">Deploy</button>
+            <button class="btn btn-secondary">Connect Wallet</button>
+          </div>
+        </div>
+        <div class="card">
+          <p class="card-label">Latest deployment</p>
+          <p class="card-value" style="font-size: 16px;">slipway-deploy.app</p>
+          <p class="card-sub">Live · 2m ago · main</p>
+        </div>
+      </div>
+      <div class="contrast">
+        <span>Body 15.2:1</span>
+        <span>Primary 6.4:1</span>
+        <span>Muted 6.0:1</span>
+        <span>AA</span>
+      </div>
+    </article>
+
+    <!-- 4: Harbor Light -->
+    <article class="palette"
+      data-dark="--bg: oklch(0.13 0.015 215); --fg: oklch(0.96 0.01 215); --card: oklch(0.18 0.02 215); --card-fg: oklch(0.96 0.01 215); --primary: oklch(0.74 0.14 200); --primary-fg: oklch(0.10 0 0); --muted: oklch(0.20 0.02 215); --muted-fg: oklch(0.66 0.01 215); --border: oklch(0.26 0.02 215); --ring: oklch(0.74 0.14 200); --input-bg: oklch(0.18 0.02 215); --radius: 8px;"
+      data-light="--bg: oklch(0.98 0.01 215); --fg: oklch(0.18 0.02 215); --card: oklch(1.00 0 0); --card-fg: oklch(0.18 0.02 215); --primary: oklch(0.50 0.14 200); --primary-fg: oklch(0.98 0 0); --muted: oklch(0.95 0.01 215); --muted-fg: oklch(0.45 0.02 215); --border: oklch(0.90 0.01 215); --ring: oklch(0.50 0.14 200); --input-bg: oklch(0.96 0.01 215); --radius: 8px;"
+      style="--bg: oklch(0.13 0.015 215); --fg: oklch(0.96 0.01 215); --card: oklch(0.18 0.02 215); --card-fg: oklch(0.96 0.01 215); --primary: oklch(0.74 0.14 200); --primary-fg: oklch(0.10 0 0); --muted: oklch(0.20 0.02 215); --muted-fg: oklch(0.66 0.01 215); --border: oklch(0.26 0.02 215); --ring: oklch(0.74 0.14 200); --input-bg: oklch(0.18 0.02 215); --radius: 8px;">
+      <header class="palette-header">
+        <div>
+          <h2 class="palette-name"><span class="palette-number">4</span>Harbor Light</h2>
+          <p class="palette-vibe">technical · premium · calm (generated)</p>
+        </div>
+      </header>
+      <div class="swatches">
+        <div class="swatch" style="background: #0A121A;"><span class="swatch-label">#0A121A</span></div>
+        <div class="swatch" style="background: #111B28;"><span class="swatch-label">#111B28</span></div>
+        <div class="swatch" style="background: #35AFCE;"><span class="swatch-label">#35AFCE</span></div>
+        <div class="swatch" style="background: #86D6DC;"><span class="swatch-label">#86D6DC</span></div>
+        <div class="swatch" style="background: #EDF2F5;"><span class="swatch-label">#EDF2F5</span></div>
+      </div>
+      <div class="ui">
+        <div>
+          <p class="muted" style="margin-bottom: 4px;">Total deployments</p>
+          <h3 class="headline" style="font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;">248</h3>
+          <p class="muted">+12 today · 100% uptime</p>
+          <div class="buttons" style="margin-top: 20px;">
+            <button class="btn btn-primary">Deploy</button>
+            <button class="btn btn-secondary">Connect Wallet</button>
+          </div>
+        </div>
+        <div class="card">
+          <p class="card-label">Latest deployment</p>
+          <p class="card-value" style="font-size: 16px;">slipway-deploy.app</p>
+          <p class="card-sub">Live · 2m ago · main</p>
+        </div>
+      </div>
+      <div class="contrast">
+        <span>Body 15.4:1</span>
+        <span>Primary 6.1:1</span>
+        <span>Muted 6.1:1</span>
+        <span>AA</span>
+      </div>
+    </article>
+
+    <!-- 5: Drydock -->
+    <article class="palette"
+      data-dark="--bg: oklch(0.12 0.02 210); --fg: oklch(0.97 0.01 210); --card: oklch(0.17 0.025 210); --card-fg: oklch(0.97 0.01 210); --primary: oklch(0.76 0.20 195); --primary-fg: oklch(0.10 0 0); --muted: oklch(0.19 0.025 210); --muted-fg: oklch(0.67 0.01 210); --border: oklch(0.25 0.025 210); --ring: oklch(0.76 0.20 195); --input-bg: oklch(0.17 0.025 210); --radius: 8px;"
+      data-light="--bg: oklch(0.98 0.01 210); --fg: oklch(0.17 0.02 210); --card: oklch(1.00 0 0); --card-fg: oklch(0.17 0.02 210); --primary: oklch(0.48 0.20 195); --primary-fg: oklch(0.98 0 0); --muted: oklch(0.95 0.01 210); --muted-fg: oklch(0.45 0.02 210); --border: oklch(0.90 0.01 210); --ring: oklch(0.48 0.20 195); --input-bg: oklch(0.96 0.01 210); --radius: 8px;"
+      style="--bg: oklch(0.12 0.02 210); --fg: oklch(0.97 0.01 210); --card: oklch(0.17 0.025 210); --card-fg: oklch(0.97 0.01 210); --primary: oklch(0.76 0.20 195); --primary-fg: oklch(0.10 0 0); --muted: oklch(0.19 0.025 210); --muted-fg: oklch(0.67 0.01 210); --border: oklch(0.25 0.025 210); --ring: oklch(0.76 0.20 195); --input-bg: oklch(0.17 0.025 210); --radius: 8px;">
+      <header class="palette-header">
+        <div>
+          <h2 class="palette-name"><span class="palette-number">5</span>Drydock</h2>
+          <p class="palette-vibe">bold · technical · electric (generated)</p>
+        </div>
+      </header>
+      <div class="swatches">
+        <div class="swatch" style="background: #070F17;"><span class="swatch-label">#070F17</span></div>
+        <div class="swatch" style="background: #0D1B24;"><span class="swatch-label">#0D1B24</span></div>
+        <div class="swatch" style="background: #2EE0D6;"><span class="swatch-label">#2EE0D6</span></div>
+        <div class="swatch" style="background: #7EEAE2;"><span class="swatch-label">#7EEAE2</span></div>
+        <div class="swatch" style="background: #EEF4F5;"><span class="swatch-label">#EEF4F5</span></div>
+      </div>
+      <div class="ui">
+        <div>
+          <p class="muted" style="margin-bottom: 4px;">Total deployments</p>
+          <h3 class="headline" style="font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;">248</h3>
+          <p class="muted">+12 today · 100% uptime</p>
+          <div class="buttons" style="margin-top: 20px;">
+            <button class="btn btn-primary">Deploy</button>
+            <button class="btn btn-secondary">Connect Wallet</button>
+          </div>
+        </div>
+        <div class="card">
+          <p class="card-label">Latest deployment</p>
+          <p class="card-value" style="font-size: 16px;">slipway-deploy.app</p>
+          <p class="card-sub">Live · 2m ago · main</p>
+        </div>
+      </div>
+      <div class="contrast">
+        <span>Body 16.1:1</span>
+        <span>Primary 7.0:1</span>
+        <span>Muted 6.3:1</span>
+        <span>AA</span>
+      </div>
+    </article>
+
+    <!-- 6: Flagship Mono -->
+    <article class="palette"
+      data-dark="--bg: oklch(0.11 0 0); --fg: oklch(0.98 0 0); --card: oklch(0.17 0 0); --card-fg: oklch(0.98 0 0); --primary: oklch(0.78 0.15 70); --primary-fg: oklch(0.10 0 0); --muted: oklch(0.19 0 0); --muted-fg: oklch(0.68 0 0); --border: oklch(0.25 0 0); --ring: oklch(0.78 0.15 70); --input-bg: oklch(0.17 0 0); --radius: 8px;"
+      data-light="--bg: oklch(0.98 0 0); --fg: oklch(0.15 0 0); --card: oklch(1.00 0 0); --card-fg: oklch(0.15 0 0); --primary: oklch(0.52 0.15 70); --primary-fg: oklch(0.98 0 0); --muted: oklch(0.95 0 0); --muted-fg: oklch(0.45 0 0); --border: oklch(0.90 0 0); --ring: oklch(0.52 0.15 70); --input-bg: oklch(0.96 0 0); --radius: 8px;"
+      style="--bg: oklch(0.11 0 0); --fg: oklch(0.98 0 0); --card: oklch(0.17 0 0); --card-fg: oklch(0.98 0 0); --primary: oklch(0.78 0.15 70); --primary-fg: oklch(0.10 0 0); --muted: oklch(0.19 0 0); --muted-fg: oklch(0.68 0 0); --border: oklch(0.25 0 0); --ring: oklch(0.78 0.15 70); --input-bg: oklch(0.17 0 0); --radius: 8px;">
+      <header class="palette-header">
+        <div>
+          <h2 class="palette-name"><span class="palette-number">6</span>Flagship Mono</h2>
+          <p class="palette-vibe">minimal · premium · signal (generated)</p>
+        </div>
+      </header>
+      <div class="swatches">
+        <div class="swatch" style="background: #0B0B0B;"><span class="swatch-label">#0B0B0B</span></div>
+        <div class="swatch" style="background: #161616;"><span class="swatch-label">#161616</span></div>
+        <div class="swatch" style="background: #D9A452;"><span class="swatch-label">#D9A452</span></div>
+        <div class="swatch" style="background: #E8C389;"><span class="swatch-label">#E8C389</span></div>
+        <div class="swatch" style="background: #F7F7F7;"><span class="swatch-label">#F7F7F7</span></div>
+      </div>
+      <div class="ui">
+        <div>
+          <p class="muted" style="margin-bottom: 4px;">Total deployments</p>
+          <h3 class="headline" style="font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;">248</h3>
+          <p class="muted">+12 today · 100% uptime</p>
+          <div class="buttons" style="margin-top: 20px;">
+            <button class="btn btn-primary">Deploy</button>
+            <button class="btn btn-secondary">Connect Wallet</button>
+          </div>
+        </div>
+        <div class="card">
+          <p class="card-label">Latest deployment</p>
+          <p class="card-value" style="font-size: 16px;">slipway-deploy.app</p>
+          <p class="card-sub">Live · 2m ago · main</p>
+        </div>
+      </div>
+      <div class="contrast">
+        <span>Body 16.8:1</span>
+        <span>Primary 5.6:1</span>
+        <span>Muted 6.5:1</span>
+        <span>AA</span>
+      </div>
+    </article>
+
+    <div class="footer-cta">
+      Pick one: type <code>1</code> through <code>6</code> in Claude Code.<br />
+      Want variations? Try <code>more like 3</code>, <code>more minimal</code>, or <code>none</code>.
+    </div>
+  </div>
+
+  <script>
+    const root = document.documentElement;
+    const btn = document.getElementById('theme-toggle');
+    btn.addEventListener('click', () => {
+      const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      btn.textContent = next === 'dark' ? 'Switch to Light' : 'Switch to Dark';
+      document.querySelectorAll('.palette').forEach((el) => {
+        const tokens = next === 'dark' ? el.dataset.dark : el.dataset.light;
+        if (tokens) el.setAttribute('style', tokens);
+      });
+    });
+  </script>
+</body>
+</html>
